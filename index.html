@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meme Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        .meme-form {
+            margin-bottom: 20px;
+        }
+        input[type="file"],
+        input[type="text"] {
+            padding: 10px;
+            margin: 10px;
+            font-size: 1rem;
+            width: 80%;
+            max-width: 500px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .ai-option {
+            margin: 10px;
+            font-size: 1rem;
+        }
+        .meme-display {
+            margin-top: 20px;
+        }
+        canvas {
+            border: 2px solid #000;
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Meme Generator</h1>
+        
+        <div class="meme-form">
+            <input type="file" id="imageUpload" accept="image/*">
+            <input type="text" id="topText" placeholder="Top Text">
+            <input type="text" id="bottomText" placeholder="Bottom Text">
+            <div class="ai-option">
+                <input type="checkbox" id="aiCheckbox"> <label for="aiCheckbox">Use Random AI Text</label>
+            </div>
+            <button id="generateMeme">Generate Meme</button>
+            <button id="downloadMeme">Download Meme</button>
+        </div>
+
+        <div class="meme-display">
+            <canvas id="memeCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('memeCanvas');
+        const ctx = canvas.getContext('2d');
+        const imageUpload = document.getElementById('imageUpload');
+        const topText = document.getElementById('topText');
+        const bottomText = document.getElementById('bottomText');
+        const generateMeme = document.getElementById('generateMeme');
+        const downloadMeme = document.getElementById('downloadMeme');
+        const aiCheckbox = document.getElementById('aiCheckbox');
+        let memeImage;
+
+        // AI-inspired random top and bottom texts
+        const aiTopTexts = [
+            "When Monday hits...", "The moment you realize...", "Guess who's back!",
+            "When you know it's going to be a good day!", "Just another day at work...",
+            "That awkward moment when...", "Life in 2024 be like...", "This is fine...",
+            "Trying to act cool but...", "When you can't believe it happened...", "Expectation vs. Reality",
+            "When you forget the important thing...", "Just vibing...", "Here we go again...",
+            "When the Wi-Fi stops working...", "When you see the bill...", "Life comes at you fast...",
+            "I need a vacation from my vacation...", "Mood: Can't even...", "Me, trying to stay positive...",
+            "When you realize it's Monday...", "It's a me, not a you problem...", "Surprise! It's chaos...",
+            "When the coffee hasn't kicked in yet...", "Waiting for the weekend like...", "Trying to stay productive...",
+            "When the alarm goes off...", "Relatable? Too much!", "When you finally finish the project...",
+            "Another day, another meme...", "Feeling cute, might delete later...", "Current mood: Loading...",
+            "And that's how it started...", "Me, pretending to know what's going on...", "Throwback to when things were normal...",
+            "When you check the news...", "When you try to impress but fail...", "That feeling when it’s finally Friday...",
+            "When your code doesn't work...", "Here’s how I solved it...", "It's meme time!", 
+            "When plans change last minute...", "Trying not to laugh, but...", "The struggle is real...", 
+            "When you take the last slice of pizza...", "Walking into Monday like...", "When you try to relax but...",
+            "When the caffeine hits just right...", "Trying to keep up with life...", "Waking up like this...",
+            "That moment when everything clicks..."
+        ];
+
+        const aiBottomTexts = [
+            "But first, coffee.", "And then I said no way!", "Just kidding, it's chaos.",
+            "Let's get this bread!", "No one: Absolutely no one:", "Plot twist: I survived.",
+            "Me in the mirror: Nailed it!", "It's not a phase, mom!", "Hold my coffee, watch this.",
+            "Y'all got any more of those...", "Panic! At the everything.", "Just smile and wave...",
+            "Guess who’s back? Back again.", "Surprise, I’m still here.", "Nobody asked, but okay.",
+            "And here we are.", "Is this real life?", "Can we not?", "Feeling blessed. Too blessed.",
+            "Send help, ASAP.", "This is my life now.", "In my defense, it was funny.",
+            "Current status: Overwhelmed.", "Life hack: Don’t.", "I'm so tired of being tired.",
+            "When will this end?", "Let's not talk about it.", "So... that happened.", 
+            "Yes, it’s one of those days.", "Well, this is awkward.", "Literally can’t even.",
+            "Error: Out of patience.", "BRB, fixing everything.", "Mood: I need a nap.", 
+            "Ready for the weekend.", "Who needs sleep?", "Send coffee, now.", "Meh, good enough.",
+            "Story of my life.", "Say no more.", "Can we go home yet?", 
+            "Can we just not?", "I don’t have the energy for this.", "It’s fine. Everything’s fine.", 
+            "Still waiting on that miracle.", "Spoiler: It didn’t work.", "Me, overthinking as usual.",
+            "First, let me take a nap.", "Okay, now what?", "Waiting for the weekend."
+        ];
+
+        // Handle image upload
+        imageUpload.addEventListener('change', function() {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                memeImage = new Image();
+                memeImage.src = event.target.result;
+
+                // When the image is loaded, draw it on the canvas
+                memeImage.onload = function() {
+                    canvas.width = memeImage.width;
+                    canvas.height = memeImage.height;
+                    ctx.drawImage(memeImage, 0, 0, canvas.width, canvas.height);
+
+                    // If AI checkbox is checked, generate AI text
+                    if (aiCheckbox.checked) {
+                        topText.value = aiTopTexts[Math.floor(Math.random() * aiTopTexts.length)];
+                        bottomText.value = aiBottomTexts[Math.floor(Math.random() * aiBottomTexts.length)];
+                    }
+                };
+            };
+            reader.readAsDataURL(this.files[0]);
+        });
+
+        // Generate meme when clicking the button
+        generateMeme.addEventListener('click', function() {
+            if (!memeImage) return;
+
+            // Clear the canvas before drawing the image again
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the image
+            ctx.drawImage(memeImage, 0, 0, canvas.width, canvas.height);
+
+            // Text settings
+            ctx.font = '50px Impact';
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 5;
+            ctx.textAlign = 'center';
+
+            // Draw top text
+            ctx.textBaseline = 'top';
+            ctx.fillText(topText.value.toUpperCase(), canvas.width / 2, 10);
+            ctx.strokeText(topText.value.toUpperCase(), canvas.width / 2, 10);
+
+            // Draw bottom text
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(bottomText.value.toUpperCase(), canvas.width / 2, canvas.height - 10);
+            ctx.strokeText(bottomText.value.toUpperCase(), canvas.width / 2, canvas.height - 10);
+        });
+
+        // Download the meme
+        downloadMeme.addEventListener('click', function() {
+            const link = document.createElement('a');
+            link.download = 'meme.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    </script>
+</body>
+</html>
